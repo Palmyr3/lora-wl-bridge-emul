@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "list.h"
+#include "timeout-timer.h"
 
 #define CONFIG_STK_PACK_CONST_LEN		19
 #define CONFIG_STK_PAYLOAD_LEN			CONFIG_STK_PACK_CONST_LEN - 3
@@ -84,26 +85,29 @@ struct wls_pack {
 
 struct stl_transmiter {
 	uint8_t id;
-	uint8_t ts_pack[CONFIG_STK_PACK_CONST_LEN];	// depricated
+//	uint8_t ts_pack[CONFIG_STK_PACK_CONST_LEN];	// depricated
 	/* local buffer */
-	uint8_t ts_buff[CONFIG_STK_PACK_CONST_LEN];	// depricated
-	enum master_state state;			// depricated
+//	uint8_t ts_buff[CONFIG_STK_PACK_CONST_LEN];	// depricated
+//	enum master_state state;			// depricated
 
-	enum mac_state mac_state;
-	enum llc_state llc_state;
+	enum mac_state		mac_state;
+	enum llc_state		llc_state;
 
-	uint8_t received_in_buff;			// depricated
-	uint8_t recv_buff[CONFIG_STK_PACK_CONST_LEN];	// depricated
-	uint8_t to_send_in_buff;			// depricated
-	uint8_t send_buff[CONFIG_STK_PACK_CONST_LEN];	// depricated
+//	uint8_t received_in_buff;			// depricated
+//	uint8_t recv_buff[CONFIG_STK_PACK_CONST_LEN];	// depricated
+//	uint8_t to_send_in_buff;			// depricated
+//	uint8_t send_buff[CONFIG_STK_PACK_CONST_LEN];	// depricated
 
-	uint8_t retries_num;
+	uint8_t			retries_num;		// temp
+	uint32_t		mac_recv_timeout;	// temp
 
-	struct list_head send_list;
-	struct wls_pack send_list_pool[10];
+	struct list_head	send_list;
+	struct wls_pack		send_list_pool[10];
 
-	struct list_head recv_list;
-	struct wls_pack recv_list_pool[10];
+	struct list_head	recv_list;
+	struct wls_pack		recv_list_pool[10];
+
+	struct tt_timer		llc_timer;
 };
 
 uint16_t stk_checksumm(const uint8_t *data_p, uint16_t length);

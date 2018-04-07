@@ -10,7 +10,7 @@ gcc -Wall -lpthread \
 	-DCONFIG_WL_ADD_PACKETS_SCORE=2 \
 	-DCONFIG_WL_RANDOMIZE_TOA=false \
 	-DCONFIG_WL_STD_TIME_ON_AIR_MS=100 \
-	mt-test-env-core.c env-core.c stack-comm.c -o mt-test-env-core
+	mt-test-env-core.c env-core.c stack-comm.c timeout-timer-internal.c -o mt-test-env-core
 gcc -Wall -lpthread \
 	-DCONFIG_WL_LOSE_PACKETS=false \
 	-DCONFIG_WL_LOSE_PACKETS_SCORE=10 \
@@ -21,7 +21,7 @@ gcc -Wall -lpthread \
 	-DCONFIG_WL_ADD_PACKETS_SCORE=2 \
 	-DCONFIG_WL_RANDOMIZE_TOA=false \
 	-DCONFIG_WL_STD_TIME_ON_AIR_MS=100 \
-	mt-test-env-core.c env-core.c stack-comm.c -o mt-test-err-env-core
+	mt-test-env-core.c env-core.c stack-comm.c timeout-timer-internal.c -o mt-test-err-env-core
 
 gcc -Wall -lpthread \
 	-DCONFIG_WL_LOSE_PACKETS=false \
@@ -33,7 +33,7 @@ gcc -Wall -lpthread \
 	-DCONFIG_WL_ADD_PACKETS_SCORE=2 \
 	-DCONFIG_WL_RANDOMIZE_TOA=false \
 	-DCONFIG_WL_STD_TIME_ON_AIR_MS=100 \
-	mt-test-env-core-w-timout.c env-core.c stack-comm.c -o mt-test-env-core-w-timout
+	mt-test-env-core-w-timout.c env-core.c stack-comm.c timeout-timer-internal.c -o mt-test-env-core-w-timout
 
 #gcc -Wall -lpthread \
 #	-DCONFIG_WL_LOSE_PACKETS=true \
@@ -57,7 +57,7 @@ gcc -Wall -lpthread \
 	-DCONFIG_WL_ADD_PACKETS_SCORE=2 \
 	-DCONFIG_WL_RANDOMIZE_TOA=false \
 	-DCONFIG_WL_STD_TIME_ON_AIR_MS=100 \
-	mt-test-stk-v2.c env-core.c stack-comm.c -o mt-test-stk-v2
+	mt-test-stk-v2.c env-core.c stack-comm.c timeout-timer-internal.c -o mt-test-stk-v2
 
 gcc -Wall -lpthread \
 	-DCONFIG_WL_LOSE_PACKETS=true \
@@ -69,7 +69,7 @@ gcc -Wall -lpthread \
 	-DCONFIG_WL_ADD_PACKETS_SCORE=2 \
 	-DCONFIG_WL_RANDOMIZE_TOA=false \
 	-DCONFIG_WL_STD_TIME_ON_AIR_MS=100 \
-	mt-test-env-core.c env-core.c stack-comm.c -o mt-test-lose-env-core
+	mt-test-env-core.c env-core.c stack-comm.c timeout-timer-internal.c -o mt-test-lose-env-core
 
 gcc -Wall -lpthread \
 	-DCONFIG_WL_LOSE_PACKETS=false \

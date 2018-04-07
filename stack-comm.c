@@ -78,10 +78,10 @@ uint16_t stk_get_payload_len(uint8_t *data_p)
 }
 
 /* Master part */
-bool stk_transmiter_busy(struct stl_transmiter *tsm)
-{
-	return tsm->state != M_IDLE;
-}
+//bool stk_transmiter_busy(struct stl_transmiter *tsm)
+//{
+//	return tsm->state != M_IDLE;
+//}
 
 static int stk_m_llc_single_prepare(struct stl_transmiter *tsm, struct wls_pack *pack, const uint8_t *payload, uint16_t len)
 {
@@ -151,99 +151,99 @@ static int stk_m_llc_single_prepare(struct stl_transmiter *tsm, struct wls_pack 
 //	pr_warn("failed to send and rec ACK after %d attempts\n", WFA_ATTEMPTS);
 //}
 
-void stk_m_wait_for_pack(struct stl_transmiter *tsm)
-{
-	uint8_t ack_pack[CONFIG_STK_PACK_CONST_LEN] = {};
-	union stk_pack_header_l1 header_l1;
-	int ret;
+//void stk_m_wait_for_pack(struct stl_transmiter *tsm)
+//{
+//	uint8_t ack_pack[CONFIG_STK_PACK_CONST_LEN] = {};
+//	union stk_pack_header_l1 header_l1;
+//	int ret;
+//
+//	while (true) {
+//		ret = wl_receivePacketTimeout(tsm->id, CONFIG_WL_STD_TIME_ON_AIR_MS * 1000, ack_pack);
+//		if (ret)
+//			continue;
+//
+//		if (!stk_test_pack_checksumm(ack_pack)) {
+//			pr_warn("%s: bad CRC\n", __func__);
+//			continue;
+//		}
+//
+//		if (stk_get_pack_type(ack_pack) != TYPE_SINGLE) {
+//			pr_warn("%s: unknown pack\n", __func__);
+//			continue;
+//		}
+//
+//		header_l1.single_pack.type = TYPE_INTERNAL;
+//		/* TODO: add freecounter */
+//
+//		tsm->ts_pack[STK_P_HEADER_L1] = header_l1.byte;
+//		stk_set_pack_checksumm(tsm->ts_pack);
+//
+//		ret = wl_sendPacketTimeout(tsm->id, tsm->ts_pack, STK_SEND_TIMEOUT);
+//
+//		pr_info("send ACK\n");
+//	}
+//}
 
-	while (true) {
-		ret = wl_receivePacketTimeout(tsm->id, CONFIG_WL_STD_TIME_ON_AIR_MS * 1000, ack_pack);
-		if (ret)
-			continue;
+//void stk_s_wait_for_pack(struct stl_transmiter *tsm)
+//{
+//	uint8_t ack_pack[CONFIG_STK_PACK_CONST_LEN] = {};
+//	uint32_t free_wait_timeout = CONFIG_WL_STD_TIME_ON_AIR_MS * 1000;
+//	int ret;
+//
+//	tsm->state = S_WAIT_FOR_PACK;
+//
+//	while (tsm->state == S_WAIT_FOR_PACK) {
+//		ret = wl_receivePacketTimeout(tsm->id, free_wait_timeout, ack_pack);
+//		if (ret)
+//			continue;
+//
+//		if (!stk_test_pack_checksumm(ack_pack)) {
+//			pr_warn("%s: bad CRC\n", __func__);
+//			continue;
+//		}
+//
+//		stk_s_process_pack_generic(tsm, ack_pack);
+//	}
+//}
 
-		if (!stk_test_pack_checksumm(ack_pack)) {
-			pr_warn("%s: bad CRC\n", __func__);
-			continue;
-		}
+//void stk_s_process_pack_generic(struct stl_transmiter *tsm, uint8_t *pack)
+//{
+//	union stk_pack_header_l1 header_l1;
+//
+//	tsm->state = S_PREPARE_RESP;
+//
+//	header_l1.byte = pack[STK_P_HEADER_L1];
+//
+//	switch (header_l1.generic_pack.type) {
+//		case TYPE_SINGLE:
+//			stk_s_process_pack_single(tsm, pack);
+//			break;
+//		case TYPE_INTERNAL:
+//		case TYPE_MULT:
+//		case TYPE_MULT_LAST:
+//		default:
+//			tsm->state = S_WAIT_FOR_PACK;
+//			pr_warn("Unsupported packet type: 0x%x", header_l1.generic_pack.type);
+//			break;
+//	}
+//}
 
-		if (stk_get_pack_type(ack_pack) != TYPE_SINGLE) {
-			pr_warn("%s: unknown pack\n", __func__);
-			continue;
-		}
-
-		header_l1.single_pack.type = TYPE_INTERNAL;
-		/* TODO: add freecounter */
-
-		tsm->ts_pack[STK_P_HEADER_L1] = header_l1.byte;
-		stk_set_pack_checksumm(tsm->ts_pack);
-
-		ret = wl_sendPacketTimeout(tsm->id, tsm->ts_pack, STK_SEND_TIMEOUT);
-
-		pr_info("send ACK\n");
-	}
-}
-
-void stk_s_wait_for_pack(struct stl_transmiter *tsm)
-{
-	uint8_t ack_pack[CONFIG_STK_PACK_CONST_LEN] = {};
-	uint32_t free_wait_timeout = CONFIG_WL_STD_TIME_ON_AIR_MS * 1000;
-	int ret;
-
-	tsm->state = S_WAIT_FOR_PACK;
-
-	while (tsm->state == S_WAIT_FOR_PACK) {
-		ret = wl_receivePacketTimeout(tsm->id, free_wait_timeout, ack_pack);
-		if (ret)
-			continue;
-
-		if (!stk_test_pack_checksumm(ack_pack)) {
-			pr_warn("%s: bad CRC\n", __func__);
-			continue;
-		}
-
-		stk_s_process_pack_generic(tsm, ack_pack);
-	}
-}
-
-void stk_s_process_pack_generic(struct stl_transmiter *tsm, uint8_t *pack)
-{
-	union stk_pack_header_l1 header_l1;
-
-	tsm->state = S_PREPARE_RESP;
-
-	header_l1.byte = pack[STK_P_HEADER_L1];
-
-	switch (header_l1.generic_pack.type) {
-		case TYPE_SINGLE:
-			stk_s_process_pack_single(tsm, pack);
-			break;
-		case TYPE_INTERNAL:
-		case TYPE_MULT:
-		case TYPE_MULT_LAST:
-		default:
-			tsm->state = S_WAIT_FOR_PACK;
-			pr_warn("Unsupported packet type: 0x%x", header_l1.generic_pack.type);
-			break;
-	}
-}
-
-void stk_s_process_pack_single(struct stl_transmiter *tsm, uint8_t *pack)
-{
-	union stk_pack_header_l1 header_l1;
-
-	header_l1.single_pack.type = TYPE_INTERNAL;
-	/* TODO: add freecounter */
-
-	tsm->ts_pack[STK_P_HEADER_L1] = header_l1.byte;
-	stk_set_pack_checksumm(tsm->ts_pack);
-
-	wl_sendPacketTimeout(tsm->id, tsm->ts_pack, STK_SEND_TIMEOUT);
-
-	pr_info("send ACK\n");
-
-	tsm->state = S_WAIT_FOR_PACK;
-}
+//void stk_s_process_pack_single(struct stl_transmiter *tsm, uint8_t *pack)
+//{
+//	union stk_pack_header_l1 header_l1;
+//
+//	header_l1.single_pack.type = TYPE_INTERNAL;
+//	/* TODO: add freecounter */
+//
+//	tsm->ts_pack[STK_P_HEADER_L1] = header_l1.byte;
+//	stk_set_pack_checksumm(tsm->ts_pack);
+//
+//	wl_sendPacketTimeout(tsm->id, tsm->ts_pack, STK_SEND_TIMEOUT);
+//
+//	pr_info("send ACK\n");
+//
+//	tsm->state = S_WAIT_FOR_PACK;
+//}
 
 static bool stk_mac_has_pack_to_send(struct stl_transmiter *tsm)
 {
@@ -330,13 +330,12 @@ static struct wls_pack * stk_get_recv_packholder(struct stl_transmiter *tsm)
 
 static void stk_mac_do_receive(struct stl_transmiter *tsm)
 {
-	uint32_t free_wait_timeout = CONFIG_WL_STD_TIME_ON_AIR_MS * 1000;
 	struct wls_pack *pack;
 
 	pack = stk_get_recv_packholder(tsm);
 	pr_assert(pack, "no place in recv pool?\n");
 
-	if (wl_receivePacketTimeout(tsm->id, free_wait_timeout, pack->data))
+	if (wl_receivePacketTimeout(tsm->id, tsm->mac_recv_timeout, pack->data))
 		return;
 
 	if (!stk_test_pack_checksumm(pack->data)) {
@@ -351,6 +350,7 @@ static void stk_c_tsm_init(struct stl_transmiter *tsm)
 {
 	INIT_LIST_HEAD(&tsm->send_list);
 	INIT_LIST_HEAD(&tsm->recv_list);
+	tt_timer_init(&tsm->llc_timer);
 
 	tsm->retries_num = 0;
 }
@@ -364,6 +364,8 @@ static void stk_s_tsm_init(struct stl_transmiter *tsm)
 
 	tsm->mac_state = MAC_RECEIVING_CONT;
 	tsm->llc_state = LLC_IDLE;
+
+	tsm->mac_recv_timeout = CONFIG_WL_STD_TIME_ON_AIR_MS * 1000;
 }
 
 static void stk_m_tsm_init(struct stl_transmiter *tsm)
@@ -375,6 +377,8 @@ static void stk_m_tsm_init(struct stl_transmiter *tsm)
 
 	tsm->mac_state = MAC_IDLE;
 	tsm->llc_state = LLC_IDLE;
+
+	tsm->mac_recv_timeout = CONFIG_WL_STD_TIME_ON_AIR_MS * 3;
 }
 
 static void stk_mac_worker(struct stl_transmiter *tsm, enum mac_state *mac_state)
@@ -453,16 +457,6 @@ void stk_s_comm_loop(struct stl_transmiter *tsm)
 	}
 }
 
-static void stk_llc_set_timeout(struct stl_transmiter *tsm, uint32_t timeout)
-{
-
-}
-
-static bool stk_llc_is_timeouted(struct stl_transmiter *tsm)
-{
-	return true;
-}
-
 bool stk_m_has_pack_to_send(struct stl_transmiter *tsm)
 {
 	return true;
@@ -480,7 +474,7 @@ static void stk_m_llc_worker(struct stl_transmiter *tsm, enum llc_state *llc_sta
 			if (stk_m_has_pack_to_send(tsm)) {
 				stk_m_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
 
-				stk_llc_set_timeout(tsm, CONFIG_WL_STD_TIME_ON_AIR_MS * 1000);
+				tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
 				stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
 
 				tsm->retries_num = 0;
@@ -504,11 +498,11 @@ static void stk_m_llc_worker(struct stl_transmiter *tsm, enum llc_state *llc_sta
 				stk_llc_mark_as_received(tsm);
 				*llc_state = LLC_RECEIVED_ALL;
 
-			} else if (stk_llc_is_timeouted(tsm)) {
+			} else if (tt_timer_is_timeouted(&tsm->llc_timer)) {
 				/* timeouted, resend last packet */
 				stk_m_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
 
-				stk_llc_set_timeout(tsm, CONFIG_WL_STD_TIME_ON_AIR_MS * 1000);
+				tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
 				stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
 
 				tsm->retries_num++;
