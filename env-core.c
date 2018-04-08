@@ -26,11 +26,16 @@
 #define __WL_TIME_ON_AIR_US			((CONFIG_WL_STD_TIME_ON_AIR_MS % 1000) * 1000ULL)
 #define __WL_TIME_ON_AIR_S			(CONFIG_WL_STD_TIME_ON_AIR_MS / 1000)
 
+//#define WL_TRACE_USE
 
 #define pr_fmt(fmt) "rff: " fmt
 #define pr_efmt(fmt) "ERR: " fmt
 #define pr_wfmt(fmt) "WARN: " fmt
-#define pr_trace(fmt, ...)//	fprintf(stdout, pr_fmt(fmt), ##__VA_ARGS__)
+#ifdef WL_TRACE_USE
+	#define pr_trace(fmt, ...)	fprintf(stdout, pr_fmt(fmt), ##__VA_ARGS__)
+#else
+	#define pr_trace(fmt, ...)
+#endif /* WL_TRACE_USE */
 #define pr_info(fmt, ...)	fprintf(stdout, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_err(fmt, ...)	fprintf(stderr, pr_efmt(fmt), ##__VA_ARGS__)
 #define pr_warn(fmt, ...)	fprintf(stderr, pr_wfmt(fmt), ##__VA_ARGS__)
