@@ -114,7 +114,7 @@ struct stl_transmiter {
 //	enum master_state state;			// depricated
 
 	enum mac_state		mac_state;
-	enum llc_state		llc_state;		// depricated
+//	enum llc_state		llc_state;		// depricated
 	enum llc_state_s	llc_state_s;
 	enum llc_state_m	llc_state_m;
 
@@ -134,7 +134,6 @@ struct stl_transmiter {
 	struct wls_pack		recv_list_pool[10];
 
 	struct list_head	llc_resend_list;
-
 	struct tt_timer		llc_timer;
 
 	uint8_t			trans_id; /* 2 bit of transaction id field */

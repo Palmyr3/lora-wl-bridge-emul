@@ -7,6 +7,8 @@
 
 #define STK_SEND_TIMEOUT	(CONFIG_WL_STD_TIME_ON_AIR_MS * 2)
 
+//#define static
+
 static bool stk_mac_has_pack_to_send(struct stl_transmiter *tsm);
 
 static uint16_t stk_crc16(const uint8_t *data_p, uint16_t length)
@@ -346,7 +348,7 @@ static void stk_mac_do_receive(struct stl_transmiter *tsm)
 		return;
 
 	if (!stk_test_pack_checksumm(pack->data)) {
-		pr_warn("%s: bad CRC\n", __func__);
+		pr_info("[%s:%u] %s: bad CRC\n", tsm->id ? "s" : "m", tsm->trans_id, __func__);
 		return;
 	}
 
@@ -371,7 +373,7 @@ static void stk_s_tsm_init(struct stl_transmiter *tsm)
 	tsm->id = 1;
 
 	tsm->mac_state = MAC_RECEIVING_CONT;
-	tsm->llc_state = LLC_IDLE;
+//	tsm->llc_state = LLC_IDLE;
 	tsm->llc_state_s = S_LLC_IDLE;
 
 	tsm->trans_id = TRANS_ID_NONE;
@@ -386,7 +388,8 @@ static void stk_m_tsm_init(struct stl_transmiter *tsm)
 	tsm->id = 0;
 
 	tsm->mac_state = MAC_IDLE;
-	tsm->llc_state = LLC_IDLE;
+//	tsm->llc_state = LLC_IDLE;
+	tsm->llc_state_m = M_LLC_IDLE;
 
 	tsm->trans_id = TRANS_ID_START;
 	tsm->mac_recv_timeout = CONFIG_WL_STD_TIME_ON_AIR_MS * 3;
@@ -448,96 +451,96 @@ static void stk_mac_worker(struct stl_transmiter *tsm, enum mac_state *mac_state
 
 static uint8_t send_data[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0, 0, 0};
 
-void stk_s_llc_worker_v2(struct stl_transmiter *tsm, enum llc_state_s *llc_state_s)
-{
-	struct wls_pack *pack;
-	enum llc_state_s llc_state_s_prev;
-
-respin:
-	llc_state_s_prev = *llc_state_s;
-
-	switch (tsm->llc_state_s) {
-		case S_LLC_IDLE: {
-			if (stk_llc_has_received_pack(tsm)) {
-				pack = stk_llc_get_first_received(tsm);
-
-				stk_llc_resend_clear(tsm);
-
-				if (stk_get_pack_type(pack) == TYPE_SINGLE) {
-					tsm->trans_id = stk_get_trans_id(pack);
-					*llc_state_s = S_LLC_RECEIVED_ALL;
-
-				} else if (stk_get_pack_type(pack) == TYPE_INTERNAL) {
-					pr_assert(false, "%s:%d\n", __func__, __LINE__);
-
-				} else {
-					pr_assert(false, "%s:%d\n", __func__, __LINE__);
-
-				}
-
-				stk_llc_mark_as_received(tsm);
-			}
-
-			break;
-		}
-		case S_LLC_RECEIVED_ALL: {
-			stk_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
-
-			tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
-			stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
-			stk_llc_resend_add(tsm, &tsm->send_list_pool[0]);
-
-			tsm->retries_num = 0;
-			*llc_state_s = S_LLC_SEND_ALL;
-
-			break;
-		}
-		case S_LLC_SEND_ALL: {
-			if (stk_llc_has_received_pack(tsm)) {
-				pack = stk_llc_get_first_received(tsm);
-
-				if (stk_get_pack_type(pack) != TYPE_INTERNAL)
-					pr_warn("%s: unknown pack\n", __func__);
-
-				if (stk_get_trans_id(pack) != tsm->trans_id)
-					pr_warn("%s: trans_id mismatch\n", __func__);
-
-				stk_llc_mark_as_received(tsm);
-				*llc_state_s = S_LLC_IDLE;
-
-			} else if (tt_timer_is_timeouted(&tsm->llc_timer)) {
-				/* timeouted, resend last packet */
-				*llc_state_s = S_LLC_RESEND;
-			}
-
-			break;
-		}
-		case S_LLC_RESEND: {
-			/* timeouted, resend last packet */
-			pr_assert(stk_llc_resend_get(tsm, &pack), "empty resend list?\n");
-
-			stk_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
-
-			tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
-			stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
-
-			tsm->retries_num++;
-
-			pr_info("[s] not recieve ack, resending response, retries %u\n", tsm->retries_num);
-
-			*llc_state_s = S_LLC_SEND_ALL;
-
-			break;
-		}
-
-		default:
-			pr_assert(false, "%s:%d\n", __func__, __LINE__);
-	}
-
-	/* as current state changed - run FSM again as we can process another state */
-	if (llc_state_s_prev != *llc_state_s)
-		goto respin;
-}
+//void stk_s_llc_worker_v2(struct stl_transmiter *tsm, enum llc_state_s *llc_state_s)
+//{
+//	struct wls_pack *pack;
+//	enum llc_state_s llc_state_s_prev;
+//
+//respin:
+//	llc_state_s_prev = *llc_state_s;
+//
+//	switch (llc_state_s_prev) {
+//		case S_LLC_IDLE: {
+//			if (stk_llc_has_received_pack(tsm)) {
+//				pack = stk_llc_get_first_received(tsm);
+//
+//				stk_llc_resend_clear(tsm);
+//
+//				if (stk_get_pack_type(pack) == TYPE_SINGLE) {
+//					tsm->trans_id = stk_get_trans_id(pack);
+//					*llc_state_s = S_LLC_RECEIVED_ALL;
+//
+//				} else if (stk_get_pack_type(pack) == TYPE_INTERNAL) {
+//					pr_assert(false, "\n");
+//
+//				} else {
+//					pr_assert(false, "\n");
+//
+//				}
+//
+//				stk_llc_mark_as_received(tsm);
+//			}
+//
+//			break;
+//		}
+//		case S_LLC_RECEIVED_ALL: {
+//			stk_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
+//
+//			tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
+//			stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
+//			stk_llc_resend_add(tsm, &tsm->send_list_pool[0]);
+//
+//			tsm->retries_num = 0;
+//			*llc_state_s = S_LLC_SEND_ALL;
+//
+//			break;
+//		}
+//		case S_LLC_SEND_ALL: {
+//			if (stk_llc_has_received_pack(tsm)) {
+//				pack = stk_llc_get_first_received(tsm);
+//
+//				if (stk_get_pack_type(pack) != TYPE_INTERNAL)
+//					pr_warn("%s: unknown pack\n", __func__);
+//
+//				if (stk_get_trans_id(pack) != tsm->trans_id)
+//					pr_warn("%s: trans_id mismatch\n", __func__);
+//
+//				stk_llc_mark_as_received(tsm);
+//				*llc_state_s = S_LLC_IDLE;
+//
+//			} else if (tt_timer_is_timeouted(&tsm->llc_timer)) {
+//				/* timeouted, resend last packet */
+//				*llc_state_s = S_LLC_RESEND;
+//			}
+//
+//			break;
+//		}
+//		case S_LLC_RESEND: {
+//			/* timeouted, resend last packet */
+//			pr_assert(stk_llc_resend_get(tsm, &pack), "empty resend list?\n");
+//
+//			stk_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
+//
+//			tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
+//			stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
+//
+//			tsm->retries_num++;
+//
+//			pr_info("[s] not recieve ack, resending response, retries %u\n", tsm->retries_num);
+//
+//			*llc_state_s = S_LLC_SEND_ALL;
+//
+//			break;
+//		}
+//
+//		default:
+//			pr_assert(false, "\n");
+//	}
+//
+//	/* as current state changed - run FSM again as we can process another state */
+//	if (llc_state_s_prev != *llc_state_s)
+//		goto respin;
+//}
 
 void stk_s_llc_worker_v3(struct stl_transmiter *tsm, enum llc_state_s *llc_state_s)
 {
@@ -547,7 +550,7 @@ void stk_s_llc_worker_v3(struct stl_transmiter *tsm, enum llc_state_s *llc_state
 respin:
 	llc_state_s_prev = *llc_state_s;
 
-	switch (tsm->llc_state_s) {
+	switch (llc_state_s_prev) {
 		case S_LLC_IDLE: {
 			if (stk_llc_has_received_pack(tsm)) {
 				pack = stk_llc_get_first_received(tsm);
@@ -558,7 +561,7 @@ respin:
 					if (stk_get_pack_type(pack) == TYPE_SINGLE) {
 						*llc_state_s = S_LLC_RESEND;
 					} else {
-						pr_assert(false, "%s:%d\n", __func__, __LINE__);
+						pr_assert(false, "\n");
 					}
 				} else {
 					/* new packet came */
@@ -569,7 +572,7 @@ respin:
 						tsm->trans_id = stk_get_trans_id(pack);
 						*llc_state_s = S_LLC_RECEIVED_ALL;
 					} else {
-						pr_assert(false, "%s:%d\n", __func__, __LINE__);
+						pr_assert(false, "\n");
 					}
 				}
 
@@ -589,7 +592,7 @@ respin:
 			break;
 		}
 		case S_LLC_SEND_ALL: {
-			pr_trace("[s:%u] recieved & send, trans_id\n", tsm->trans_id);
+			pr_info("[s:%u] recieved & send\n", tsm->trans_id);
 
 			*llc_state_s = S_LLC_IDLE;
 
@@ -612,7 +615,7 @@ respin:
 		}
 
 		default:
-			pr_assert(false, "%s:%d\n", __func__, __LINE__);
+			pr_assert(false, "\n");
 	}
 
 	/* as current state changed - run FSM again as we can process another state */
@@ -620,56 +623,56 @@ respin:
 		goto respin;
 }
 
-void stk_s_llc_worker(struct stl_transmiter *tsm, enum llc_state *llc_state)
-{
-	/*
-	 * What we need to do here:
-	 * 1. process new packet
-	 *   -> new pack in chain
-	 *   -> pack send by pd by timeout (we need to resend smth)
-	 * 2. generate pack to send
-	 * 3. ??
-	 */
-
-	struct wls_pack *pack;
-	// temp dumb implementation:
-	union stk_pack_header_l1 header_l1;
-	uint8_t trans_id;
-
-	if (!stk_llc_has_received_pack(tsm))
-		return;
-
-	pack = stk_llc_get_first_received(tsm);
-
-	if (stk_get_pack_type(pack) != TYPE_SINGLE) {
-		pr_warn("%s: unknown pack\n", __func__);
-		return;
-	}
-
-	trans_id = stk_get_trans_id(pack);
-
-	stk_llc_mark_as_received(tsm);
-
-	header_l1.single_pack.type = TYPE_INTERNAL;
-	header_l1.single_pack.id = trans_id;
-
-	tsm->send_list_pool[0].data[STK_P_HEADER_L1] = header_l1.byte;
-	stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
-}
+//void stk_s_llc_worker(struct stl_transmiter *tsm, enum llc_state *llc_state)
+//{
+//	/*
+//	 * What we need to do here:
+//	 * 1. process new packet
+//	 *   -> new pack in chain
+//	 *   -> pack send by pd by timeout (we need to resend smth)
+//	 * 2. generate pack to send
+//	 * 3. ??
+//	 */
+//
+//	struct wls_pack *pack;
+//	// temp dumb implementation:
+//	union stk_pack_header_l1 header_l1;
+//	uint8_t trans_id;
+//
+//	if (!stk_llc_has_received_pack(tsm))
+//		return;
+//
+//	pack = stk_llc_get_first_received(tsm);
+//
+//	if (stk_get_pack_type(pack) != TYPE_SINGLE) {
+//		pr_warn("%s: unknown pack\n", __func__);
+//		return;
+//	}
+//
+//	trans_id = stk_get_trans_id(pack);
+//
+//	stk_llc_mark_as_received(tsm);
+//
+//	header_l1.single_pack.type = TYPE_INTERNAL;
+//	header_l1.single_pack.id = trans_id;
+//
+//	tsm->send_list_pool[0].data[STK_P_HEADER_L1] = header_l1.byte;
+//	stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
+//}
 
 void stk_s_comm_loop(struct stl_transmiter *tsm)
 {
 	enum mac_state l_mac_state;
-	enum llc_state l_llc_state;
+	enum llc_state_s l_llc_state_s;
 
 	stk_s_tsm_init(tsm);
 
 	l_mac_state = tsm->mac_state;
-	l_llc_state = tsm->llc_state;
+	l_llc_state_s = tsm->llc_state_s;
 
 	while (true) {
-		stk_s_llc_worker(tsm, &l_llc_state);
-		tsm->llc_state = l_llc_state;
+		stk_s_llc_worker_v3(tsm, &l_llc_state_s);
+		tsm->llc_state_s = l_llc_state_s;
 
 		stk_mac_worker(tsm, &l_mac_state);
 		tsm->mac_state = l_mac_state;
@@ -697,7 +700,7 @@ static void stk_m_llc_worker_v3(struct stl_transmiter *tsm, enum llc_state_m *ll
 respin:
 	llc_state_m_prev = *llc_state_m;
 
-	switch (tsm->llc_state_m) {
+	switch (llc_state_m_prev) {
 		case M_LLC_IDLE: {
 			if (stk_m_has_pack_to_send(tsm)) {
 				stk_llc_resend_clear(tsm);
@@ -720,11 +723,11 @@ respin:
 			if (stk_llc_has_received_pack(tsm)) {
 				pack = stk_llc_get_first_received(tsm);
 
-				pr_assert(stk_get_pack_type(pack) != TYPE_SINGLE,
-					  "%s: unknown pack, type %u\n", __func__, stk_get_pack_type(pack));
+				pr_assert(stk_get_pack_type(pack) == TYPE_SINGLE,
+					  "unknown pack, type %u\n", stk_get_pack_type(pack));
 
-				pr_assert(stk_get_trans_id(pack) != tsm->trans_id,
-					  "%s: trans_id mismatch, got %u\n", __func__, stk_get_trans_id(pack));
+				pr_assert(stk_get_trans_id(pack) == tsm->trans_id,
+					  "trans_id mismatch, got %u\n", stk_get_trans_id(pack));
 
 				tsm->test_trans_id = stk_get_trans_id(pack);
 
@@ -741,7 +744,7 @@ respin:
 		case M_LLC_RECEIVED_ALL: {
 			pr_assert(tsm->trans_id == tsm->test_trans_id, "%s trans_id mismatch\n", __func__);
 
-			pr_trace("[m:%u] send & recieved ACK, got id %u\n", tsm->trans_id, tsm->test_trans_id);
+			pr_info("[m:%u] send & recieved ACK, got id %u, retries %u\n", tsm->trans_id, tsm->test_trans_id, tsm->retries_num);
 
 			*llc_state_m = M_LLC_IDLE;
 
@@ -754,9 +757,11 @@ respin:
 			stk_llc_resend_get(tsm, &pack);
 			stk_llc_pack_commit(tsm, pack);
 
+			tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
+
 			tsm->retries_num++;
 
-			pr_info("[m:%u] resending response, due to timeout pack, retries %u\n", tsm->trans_id, tsm->retries_num);
+			pr_info("[m:%u] resending pack, due to timeout, retries %u\n", tsm->trans_id, tsm->retries_num);
 
 			*llc_state_m = M_LLC_SEND_ALL;
 
@@ -764,7 +769,7 @@ respin:
 		}
 
 		default:
-			pr_assert(false, "%s:%d\n", __func__, __LINE__);
+			pr_assert(false, "\n");
 	}
 
 	/* as current state changed - run FSM again as we can process another state */
@@ -772,79 +777,79 @@ respin:
 		goto respin;
 }
 
-static void stk_m_llc_worker(struct stl_transmiter *tsm, enum llc_state *llc_state)
-{
-	struct wls_pack *pack;
-	// temp dumb implementation:
-
-	switch (tsm->llc_state) {
-		case LLC_IDLE: {
-			if (stk_m_has_pack_to_send(tsm)) {
-				stk_m_prep_trans_id(tsm);
-				stk_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
-
-				tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
-				stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
-
-				tsm->retries_num = 0;
-				*llc_state = LLC_SEND_ALL;
-			}
-			break;
-		}
-		case LLC_RECEIVED_ALL: {
-			pr_info("sended and recieved ACK, retries %u, tr_id %u\n", tsm->retries_num, tsm->test_trans_id);
-			*llc_state = LLC_IDLE;
-
-			break;
-		}
-		case LLC_SEND_ALL: {
-			if (stk_llc_has_received_pack(tsm)) {
-				pack = stk_llc_get_first_received(tsm);
-
-				if (stk_get_pack_type(pack) != TYPE_INTERNAL)
-					pr_warn("%s: unknown pack\n", __func__);
-
-				if (stk_get_trans_id(pack) != tsm->trans_id)
-					pr_warn("%s: trans_id mismatch\n", __func__);
-
-				tsm->test_trans_id = stk_get_trans_id(pack);
-
-				stk_llc_mark_as_received(tsm);
-				*llc_state = LLC_RECEIVED_ALL;
-
-			} else if (tt_timer_is_timeouted(&tsm->llc_timer)) {
-				/* timeouted, resend last packet */
-				stk_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
-
-				tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
-				stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
-
-				tsm->retries_num++;
-
-				pr_info("resending, retries %u\n", tsm->retries_num);
-			}
-
-			break;
-		}
-
-		default:
-			pr_assert(false, "%s:%d\n", __func__, __LINE__);
-	}
-}
+//void stk_m_llc_worker(struct stl_transmiter *tsm, enum llc_state *llc_state)
+//{
+//	struct wls_pack *pack;
+//	// temp dumb implementation:
+//
+//	switch (tsm->llc_state) {
+//		case LLC_IDLE: {
+//			if (stk_m_has_pack_to_send(tsm)) {
+//				stk_m_prep_trans_id(tsm);
+//				stk_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
+//
+//				tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
+//				stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
+//
+//				tsm->retries_num = 0;
+//				*llc_state = LLC_SEND_ALL;
+//			}
+//			break;
+//		}
+//		case LLC_RECEIVED_ALL: {
+//			pr_info("sended and recieved ACK, retries %u, tr_id %u\n", tsm->retries_num, tsm->test_trans_id);
+//			*llc_state = LLC_IDLE;
+//
+//			break;
+//		}
+//		case LLC_SEND_ALL: {
+//			if (stk_llc_has_received_pack(tsm)) {
+//				pack = stk_llc_get_first_received(tsm);
+//
+//				if (stk_get_pack_type(pack) != TYPE_INTERNAL)
+//					pr_warn("%s: unknown pack\n", __func__);
+//
+//				if (stk_get_trans_id(pack) != tsm->trans_id)
+//					pr_warn("%s: trans_id mismatch\n", __func__);
+//
+//				tsm->test_trans_id = stk_get_trans_id(pack);
+//
+//				stk_llc_mark_as_received(tsm);
+//				*llc_state = LLC_RECEIVED_ALL;
+//
+//			} else if (tt_timer_is_timeouted(&tsm->llc_timer)) {
+//				/* timeouted, resend last packet */
+//				stk_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
+//
+//				tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
+//				stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
+//
+//				tsm->retries_num++;
+//
+//				pr_info("resending, retries %u\n", tsm->retries_num);
+//			}
+//
+//			break;
+//		}
+//
+//		default:
+//			pr_assert(false, "\n");
+//	}
+//}
 
 void stk_m_comm_loop(struct stl_transmiter *tsm)
 {
 	enum mac_state l_mac_state;
-	enum llc_state l_llc_state;
+	enum llc_state_m l_llc_state_m;
 
 	stk_m_tsm_init(tsm);
 
 	l_mac_state = tsm->mac_state;
-	l_llc_state = tsm->llc_state;
+	l_llc_state_m = tsm->llc_state_m;
 
 	while (true) {
-		stk_m_llc_worker(tsm, &l_llc_state);
-		tsm->llc_state = l_llc_state;
+		stk_m_llc_worker_v3(tsm, &l_llc_state_m);
+		tsm->llc_state_m = l_llc_state_m;
 
 		stk_mac_worker(tsm, &l_mac_state);
 		tsm->mac_state = l_mac_state;
