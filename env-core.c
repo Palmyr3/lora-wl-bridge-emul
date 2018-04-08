@@ -30,7 +30,7 @@
 #define pr_fmt(fmt) "rff: " fmt
 #define pr_efmt(fmt) "ERR: " fmt
 #define pr_wfmt(fmt) "WARN: " fmt
-#define pr_trace(fmt, ...)	fprintf(stdout, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_trace(fmt, ...)//	fprintf(stdout, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info(fmt, ...)	fprintf(stdout, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_err(fmt, ...)	fprintf(stderr, pr_efmt(fmt), ##__VA_ARGS__)
 #define pr_warn(fmt, ...)	fprintf(stderr, pr_wfmt(fmt), ##__VA_ARGS__)
@@ -98,6 +98,16 @@ int wl_emul_env_init(void)
 	return 0;
 }
 
+static const char * node_name(uint8_t id_src)
+{
+	if (id_src == 0)
+		return "M";
+	else if (id_src == 1)
+		return "S";
+	else
+		return "?";
+}
+
 static void wl_pack_copy(uint16_t len, uint8_t *dst, uint8_t *src)
 {
 	for (uint16_t i = 0; i < len; i++)
@@ -163,7 +173,7 @@ static bool wl_is_packet_lost(uint8_t id_src)
 static void wl_pack_bit_flip(uint32_t bit, uint8_t *pack)
 {
 	uint8_t byte_n, bit_n;
-	uint8_t tmp;
+	uint8_t tmp __attribute__((unused));
 
 	byte_n = bit / 8;
 	bit_n = bit % 8;
@@ -171,7 +181,7 @@ static void wl_pack_bit_flip(uint32_t bit, uint8_t *pack)
 	tmp = pack[byte_n];
 	pack[byte_n] ^= (1 << bit_n);
 
-	pr_info("Flip bit %u: pack[%u].%u; pack was: %#x is %#x\n", bit, byte_n,
+	pr_trace("Flip bit %u: pack[%u].%u; pack was: %#x is %#x\n", bit, byte_n,
 		bit_n, tmp, pack[byte_n]);
 }
 
@@ -230,16 +240,16 @@ static void wl_shadow_worker_targ(uint8_t id_src, uint8_t id_dst)
 	if (timercmp(&check_time, &curr_time, <=)) {
 		uint32_t bits_corrupted;
 //		pr_trace("Trans send from ID_%u\n", id_src);
-		pr_trace("%ld.%06ld: Trans sent from ID_%u\n", check_time.tv_sec,
-			 check_time.tv_usec, id_src);
+		pr_trace("%ld.%06ld: Trans sent from [%s]\n", check_time.tv_sec,
+			 check_time.tv_usec, node_name(id_src));
 
 		devs.dev[id_src].output_buff.is_send = true;
 
 		/* check if we lose packets while we send it
 		 * IE: (reciever didn't recognized packet preamble) */
 		if (wl_is_packet_lost(id_src)) {
-			pr_info("%ld.%06ld: [L] packet from ID_%u was lost\n",
-				check_time.tv_sec, check_time.tv_usec, id_src);
+			pr_info("%ld.%06ld: [L] packet from [%s] was lost\n",
+				check_time.tv_sec, check_time.tv_usec, node_name(id_src));
 
 			/* Nothing to do here */
 			return;
@@ -254,8 +264,8 @@ static void wl_shadow_worker_targ(uint8_t id_src, uint8_t id_dst)
 
 		if (devs.dev[id_dst].input_buff.is_recieved) {
 			devs.err++;
-			pr_err("%ld.%06ld: New pack came to ID_%u, but previous was not read!\n",
-			       check_time.tv_sec, check_time.tv_usec, id_dst);
+			pr_err("%ld.%06ld: New pack came to [%s], but previous was not read!\n",
+			       check_time.tv_sec, check_time.tv_usec, node_name(id_dst));
 
 			/* As reciever HW input buffer is full - it can't recieve
 			 * this message. So nothing to do here */
@@ -263,8 +273,8 @@ static void wl_shadow_worker_targ(uint8_t id_src, uint8_t id_dst)
 		}
 
 //		pr_trace("New pack came to ID_%u\n", id_dst);
-		pr_trace("%ld.%06ld: New pack came to ID_%u\n", check_time.tv_sec,
-			 check_time.tv_usec, id_dst);
+		pr_trace("%ld.%06ld: New pack came to [%s]\n", check_time.tv_sec,
+			 check_time.tv_usec, node_name(id_dst));
 
 		wl_pack_copy(MAX_WL_DATA_LEN,
 			devs.dev[id_dst].input_buff.recv_data,
@@ -318,7 +328,7 @@ uint8_t wl_sendPacketTimeout(uint8_t id, uint8_t *payload, uint32_t timeout)
 		pthread_spin_lock(&devs.lock);
 		devs.err++;
 		pthread_spin_unlock(&devs.lock);
-		pr_err("[%u] try to send new pack, while previous packet is not sent!\n", id);
+		pr_err("[%s] try to send new pack, while previous packet is not sent!\n", node_name(id));
 	}
 
 //	pack_len = (uint16_t)strlen(payload);
@@ -337,8 +347,8 @@ uint8_t wl_sendPacketTimeout(uint8_t id, uint8_t *payload, uint32_t timeout)
 
 	pthread_spin_unlock(&devs.lock);
 
-	pr_trace("%ld.%06ld: Pack sending from ID_%u\n", check_time.tv_sec,
-		 check_time.tv_usec, id);
+	pr_trace("%ld.%06ld: Pack sending from [%s]\n", check_time.tv_sec,
+		 check_time.tv_usec, node_name(id));
 
 	/* TODO: check if timeout < TOA */
 	if (timeout) {
