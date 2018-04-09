@@ -9,6 +9,8 @@
 #define CONFIG_STK_PACK_CONST_LEN		19
 #define CONFIG_STK_PAYLOAD_LEN			CONFIG_STK_PACK_CONST_LEN - 3
 
+#define STK_PACKET_POOL_SIZE	10
+
 /* packet structure */
 #define STK_P_HEADER_L1		0
 #define STK_P_PAYLOAD_L1	1
@@ -98,10 +100,18 @@ struct stl_transmiter {
 	uint32_t		mac_recv_timeout;	// temp
 
 	struct list_head	send_list;
-	struct wls_pack		send_list_pool[10];
-
 	struct list_head	recv_list;
-	struct wls_pack		recv_list_pool[10];
+
+	struct wls_pack		send_list_pool_buff[STK_PACKET_POOL_SIZE];
+	struct list_head	send_list_pool;
+	struct wls_pack		recv_list_pool_buff[STK_PACKET_POOL_SIZE];
+	struct list_head	recv_list_pool;
+
+	/* TODO: could we use common pool? */
+	int8_t			llc_send_owned_counter;
+	struct list_head	llc_send_owned;
+	int8_t			llc_recv_owned_counter;
+	struct list_head	llc_recv_owned;
 
 	struct list_head	llc_resend_list;
 	struct tt_timer		llc_timer;

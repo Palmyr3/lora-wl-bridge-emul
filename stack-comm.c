@@ -157,6 +157,13 @@ static struct wls_pack * stk_llc_get_first_received(struct stl_transmiter *tsm)
 	return list_first_entry(&tsm->recv_list, struct wls_pack, mac_node);
 }
 
+static void stk_put_recv_packholder(struct stl_transmiter *tsm, struct wls_pack *pack)
+{
+	/* retrieve to pool */
+	list_move_tail(&pack->owner_node, &tsm->recv_list_pool);
+	tsm->llc_recv_owned_counter--;
+}
+
 static void stk_llc_mark_as_received(struct stl_transmiter *tsm)
 {
 	struct wls_pack *first;
@@ -165,7 +172,11 @@ static void stk_llc_mark_as_received(struct stl_transmiter *tsm)
 
 	first = stk_llc_get_first_received(tsm);
 
+	/* delete from recieve list */
 	list_del(&first->mac_node);
+
+	/* retrieve to pool */
+	stk_put_recv_packholder(tsm, first);
 }
 
 static void stk_mac_do_send(struct stl_transmiter *tsm)
@@ -185,13 +196,30 @@ static void stk_mac_do_send(struct stl_transmiter *tsm)
 /* allocate wls_pack from recv pool  */
 static struct wls_pack * stk_get_recv_packholder(struct stl_transmiter *tsm)
 {
-	//temporary use first place as we don't support pack chains
-	return &(tsm->recv_list_pool[0]);
+	struct wls_pack *pack;
+
+	pr_assert(!list_empty(&tsm->recv_list_pool), "no more entries in recv_list_pool? recv_owned %d\n",
+		  tsm->llc_recv_owned_counter);
+
+	pack = list_first_entry(&tsm->recv_list_pool, struct wls_pack, owner_node);
+	list_move_tail(&pack->owner_node, &tsm->llc_recv_owned);
+	tsm->llc_recv_owned_counter++;
+
+	return pack;
 }
 
 static struct wls_pack * stk_get_send_packholder(struct stl_transmiter *tsm)
 {
-	return &(tsm->send_list_pool[0]);
+	struct wls_pack *pack;
+
+	pr_assert(!list_empty(&tsm->send_list_pool), "no more entries in send_list_pool? send_owned %d\n",
+		  tsm->llc_send_owned_counter);
+
+	pack = list_first_entry(&tsm->send_list_pool, struct wls_pack, owner_node);
+	list_move_tail(&pack->owner_node, &tsm->llc_send_owned);
+	tsm->llc_send_owned_counter++;
+
+	return pack;
 }
 
 static void stk_mac_do_receive(struct stl_transmiter *tsm)
@@ -202,14 +230,34 @@ static void stk_mac_do_receive(struct stl_transmiter *tsm)
 	pr_assert(pack, "no place in recv pool?\n");
 
 	if (wl_receivePacketTimeout(tsm->id, tsm->mac_recv_timeout, pack->data))
-		return;
+		goto recv_fail;
 
 	if (!stk_test_pack_checksumm(pack->data)) {
-		pr_info("[%s:%u] %s: bad CRC\n", tsm->id ? "s" : "m", tsm->trans_id, __func__);
-		return;
+		pr_info("[%s:%u] %s: bad crc\n", tsm->id ? "s" : "m", tsm->trans_id, __func__);
+		goto recv_fail;
 	}
 
 	stk_mac_pack_commit(tsm, pack);
+
+	return;
+
+recv_fail:
+	stk_put_recv_packholder(tsm, pack);
+}
+
+static void stk_c_init_pools(struct stl_transmiter *tsm)
+{
+	INIT_LIST_HEAD(&tsm->send_list_pool);
+	INIT_LIST_HEAD(&tsm->recv_list_pool);
+
+	tsm->llc_send_owned_counter = 0;
+	tsm->llc_recv_owned_counter = 0;
+
+	for (int i = 0; i < STK_PACKET_POOL_SIZE; i++)
+		list_add_tail(&(tsm->send_list_pool_buff[i].owner_node), &tsm->send_list_pool);
+
+	for (int i = 0; i < STK_PACKET_POOL_SIZE; i++)
+		list_add_tail(&(tsm->recv_list_pool_buff[i].owner_node), &tsm->recv_list_pool);
 }
 
 static void stk_c_tsm_init(struct stl_transmiter *tsm)
@@ -217,7 +265,11 @@ static void stk_c_tsm_init(struct stl_transmiter *tsm)
 	INIT_LIST_HEAD(&tsm->send_list);
 	INIT_LIST_HEAD(&tsm->recv_list);
 	INIT_LIST_HEAD(&tsm->llc_resend_list);
+	INIT_LIST_HEAD(&tsm->llc_send_owned);
+	INIT_LIST_HEAD(&tsm->llc_recv_owned);
 	tt_timer_init(&tsm->llc_timer);
+
+	stk_c_init_pools(tsm);
 
 	tsm->retries_num = 0;
 }
@@ -230,7 +282,6 @@ static void stk_s_tsm_init(struct stl_transmiter *tsm)
 	tsm->id = 1;
 
 	tsm->mac_state = MAC_RECEIVING_CONT;
-//	tsm->llc_state = LLC_IDLE;
 	tsm->llc_state_s = S_LLC_IDLE;
 
 	tsm->trans_id = TRANS_ID_NONE;
@@ -245,21 +296,19 @@ static void stk_m_tsm_init(struct stl_transmiter *tsm)
 	tsm->id = 0;
 
 	tsm->mac_state = MAC_IDLE;
-//	tsm->llc_state = LLC_IDLE;
 	tsm->llc_state_m = M_LLC_IDLE;
 
 	tsm->trans_id = TRANS_ID_START;
 	tsm->mac_recv_timeout = CONFIG_WL_STD_TIME_ON_AIR_MS * 3;
 }
 
-static void stk_llc_resend_clear(struct stl_transmiter *tsm)
+static void stk_llc_resend_clear_all(struct stl_transmiter *tsm)
 {
 	struct wls_pack *child, *_next;
 
 	list_for_each_entry_safe(child, _next, &tsm->llc_resend_list, owner_node) {
-		list_del_init(&child->owner_node);
-
-		/* TODO: move to pool back */
+		list_move_tail(&child->owner_node, &tsm->send_list_pool);
+		tsm->llc_send_owned_counter--;
 	}
 
 	/* TODO: chech do we need to init list here? */
@@ -269,7 +318,7 @@ static void stk_llc_resend_clear(struct stl_transmiter *tsm)
 
 static void stk_llc_resend_add(struct stl_transmiter *tsm, struct wls_pack *pack)
 {
-	list_add_tail(&pack->owner_node, &tsm->llc_resend_list);
+	list_move_tail(&pack->owner_node, &tsm->llc_resend_list);
 }
 
 static bool stk_llc_resend_get(struct stl_transmiter *tsm, struct wls_pack **pack)
@@ -330,7 +379,7 @@ respin:
 					}
 				} else {
 					/* new packet came */
-					stk_llc_resend_clear(tsm);
+					stk_llc_resend_clear_all(tsm);
 					tsm->retries_num = 0;
 
 					if (stk_get_pack_type(pack) == TYPE_SINGLE) {
@@ -432,7 +481,7 @@ respin:
 	switch (llc_state_m_prev) {
 		case M_LLC_IDLE: {
 			if (stk_m_has_pack_to_send(tsm)) {
-				stk_llc_resend_clear(tsm);
+				stk_llc_resend_clear_all(tsm);
 				tsm->retries_num = 0;
 				stk_m_prep_trans_id(tsm);
 
