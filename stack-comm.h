@@ -44,24 +44,6 @@ union stk_pack_checksum {
 	} sum_8;
 };
 
-//enum master_state {
-//	M_IDLE = 0,
-//	M_SEND_SINGLE,
-//	M_WAIT_ACK_SINGLE,
-//
-//	/* slave states */
-////	S_IDLE,
-//	S_WAIT_FOR_PACK,	/* wait for any packet from master */
-//	S_RECEIVED,		/* received smth with walid CRC */
-//	S_PREPARE_RESP,		/* recieved valid pack, prepare response/ACK */
-//	S_SEND_ACK,
-//
-//	S_IDLE,
-//	S_SEND,
-//	S_RECEIVING_CONT,
-//
-//};
-
 enum trans_id {
 	TRANS_ID_START	= 0,
 	TRANS_ID_MAX	= 3,
@@ -74,13 +56,13 @@ enum mac_state {
 	MAC_RECEIVING_CONT
 };
 
-enum llc_state {
-	LLC_IDLE = 0,
-/*	LLC_RECEIVED, */	/* used only in multi-pack link */
-	LLC_RECEIVED_ALL,
-/*	LLC_SEND, */		/* used only in multi-pack link */
-	LLC_SEND_ALL
-};
+//enum llc_state {
+//	LLC_IDLE = 0,
+///*	LLC_RECEIVED, */	/* used only in multi-pack link */
+//	LLC_RECEIVED_ALL,
+///*	LLC_SEND, */		/* used only in multi-pack link */
+//	LLC_SEND_ALL
+//};
 
 enum llc_state_s {
 	S_LLC_IDLE = 0,
@@ -102,26 +84,14 @@ struct wls_pack {
 	struct list_head mac_node;	/* send / recieve queue */
 
 	struct list_head owner_node;	/* pool / resend pool / etc */
-
-//	bool owned;
 };
 
 struct stl_transmiter {
 	uint8_t id;
-//	uint8_t ts_pack[CONFIG_STK_PACK_CONST_LEN];	// depricated
-	/* local buffer */
-//	uint8_t ts_buff[CONFIG_STK_PACK_CONST_LEN];	// depricated
-//	enum master_state state;			// depricated
 
 	enum mac_state		mac_state;
-//	enum llc_state		llc_state;		// depricated
 	enum llc_state_s	llc_state_s;
 	enum llc_state_m	llc_state_m;
-
-//	uint8_t received_in_buff;			// depricated
-//	uint8_t recv_buff[CONFIG_STK_PACK_CONST_LEN];	// depricated
-//	uint8_t to_send_in_buff;			// depricated
-//	uint8_t send_buff[CONFIG_STK_PACK_CONST_LEN];	// depricated
 
 	uint8_t			test_trans_id;		// temp
 	uint8_t			retries_num;		// temp
