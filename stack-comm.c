@@ -189,6 +189,11 @@ static struct wls_pack * stk_get_recv_packholder(struct stl_transmiter *tsm)
 	return &(tsm->recv_list_pool[0]);
 }
 
+static struct wls_pack * stk_get_send_packholder(struct stl_transmiter *tsm)
+{
+	return &(tsm->send_list_pool[0]);
+}
+
 static void stk_mac_do_receive(struct stl_transmiter *tsm)
 {
 	struct wls_pack *pack;
@@ -270,7 +275,6 @@ static void stk_llc_resend_add(struct stl_transmiter *tsm, struct wls_pack *pack
 static bool stk_llc_resend_get(struct stl_transmiter *tsm, struct wls_pack **pack)
 {
 	if (!list_empty(&tsm->llc_resend_list)) {
-		/* TODO: go we need to use double pointer here?? */
 		*pack = list_first_entry(&tsm->llc_resend_list, struct wls_pack, owner_node);
 		return true;
 	}
@@ -343,10 +347,11 @@ respin:
 			break;
 		}
 		case S_LLC_RECEIVED_ALL: {
-			stk_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
+			pack = stk_get_send_packholder(tsm);
+			stk_llc_single_prepare(tsm, pack, send_data, 16);
 
-			stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
-			stk_llc_resend_add(tsm, &tsm->send_list_pool[0]);
+			stk_llc_pack_commit(tsm, pack);
+			stk_llc_resend_add(tsm, pack);
 
 			*llc_state_s = S_LLC_SEND_ALL;
 
@@ -431,10 +436,12 @@ respin:
 				tsm->retries_num = 0;
 				stk_m_prep_trans_id(tsm);
 
-				stk_llc_single_prepare(tsm, &(tsm->send_list_pool[0]), send_data, 16);
+				pack = stk_get_send_packholder(tsm);
 
-				stk_llc_pack_commit(tsm, &tsm->send_list_pool[0]);
-				stk_llc_resend_add(tsm, &tsm->send_list_pool[0]);
+				stk_llc_single_prepare(tsm, pack, send_data, 16);
+
+				stk_llc_pack_commit(tsm, pack);
+				stk_llc_resend_add(tsm, pack);
 
 				tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
 
