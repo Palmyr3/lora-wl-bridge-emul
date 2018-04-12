@@ -13,6 +13,7 @@
 
 /* packet structure */
 #define STK_P_HEADER_L1		0
+#define STK_P_HEADER_L2		1
 #define STK_P_PAYLOAD_L1	1
 #define STK_P_CRC_LO		17
 #define STK_P_CRC_HI		18
@@ -34,6 +35,9 @@ union stk_pack_header_l1 {
 	struct {
 		uint8_t type: 2, id: 2, pack_num: 4;
 	} modbus_pack;
+	struct {
+		uint8_t type: 2, id: 2, reset: 1, part_ack: 1, config: 2;
+	} internal_pack;
 	uint8_t byte;
 };
 

@@ -62,6 +62,18 @@ static enum l1_pack_type stk_get_pack_type(struct wls_pack *pack)
 	return header_l1.generic_pack.type;
 }
 
+static bool stk_is_reset_pack(struct wls_pack *pack)
+{
+	union stk_pack_header_l1 header_l1;
+
+	if (stk_get_pack_type(pack) != TYPE_INTERNAL)
+		return false;
+
+	header_l1.byte = pack->data[STK_P_HEADER_L1];
+
+	return !!header_l1.internal_pack.reset;
+}
+
 static uint8_t stk_get_trans_id(struct wls_pack *pack)
 {
 	union stk_pack_header_l1 header_l1;
@@ -369,8 +381,14 @@ respin:
 		if (stk_llc_has_received_pack(tsm)) {
 			pack = stk_llc_get_first_received(tsm);
 
-			/* TODO: treat all TYPE_INTERNAL != ACK packets unconditionnaly */
-			if (stk_get_trans_id(pack) == tsm->trans_id) {
+			if (stk_is_reset_pack(pack)) {
+				/* TODO: probably we need to treat _all_
+				 * TYPE_INTERNAL != ACK packets (like config)
+				 * unconditionnaly */
+				/* Do some reset actions */
+				/* TODO: send ACK to master */
+				pr_assert(false, "\n");
+			} else if (stk_get_trans_id(pack) == tsm->trans_id) {
 				/* we need to resend smth */
 				if (stk_get_pack_type(pack) == TYPE_SINGLE) {
 					*llc_state_s = S_LLC_RESEND;
@@ -378,7 +396,7 @@ respin:
 					pr_assert(false, "\n");
 				}
 			} else {
-				/* new packet came */
+				/* new transaction packet came */
 				stk_llc_resend_clear_all(tsm);
 				tsm->retries_num = 0;
 
