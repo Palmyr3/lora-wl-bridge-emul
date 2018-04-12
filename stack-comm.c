@@ -365,72 +365,72 @@ respin:
 	llc_state_s_prev = *llc_state_s;
 
 	switch (llc_state_s_prev) {
-		case S_LLC_IDLE: {
-			if (stk_llc_has_received_pack(tsm)) {
-				pack = stk_llc_get_first_received(tsm);
+	case S_LLC_IDLE: {
+		if (stk_llc_has_received_pack(tsm)) {
+			pack = stk_llc_get_first_received(tsm);
 
-				/* TODO: treat all TYPE_INTERNAL != ACK packets unconditionnaly */
-				if (stk_get_trans_id(pack) == tsm->trans_id) {
-					/* we need to resend smth */
-					if (stk_get_pack_type(pack) == TYPE_SINGLE) {
-						*llc_state_s = S_LLC_RESEND;
-					} else {
-						pr_assert(false, "\n");
-					}
+			/* TODO: treat all TYPE_INTERNAL != ACK packets unconditionnaly */
+			if (stk_get_trans_id(pack) == tsm->trans_id) {
+				/* we need to resend smth */
+				if (stk_get_pack_type(pack) == TYPE_SINGLE) {
+					*llc_state_s = S_LLC_RESEND;
 				} else {
-					/* new packet came */
-					stk_llc_resend_clear_all(tsm);
-					tsm->retries_num = 0;
-
-					if (stk_get_pack_type(pack) == TYPE_SINGLE) {
-						tsm->trans_id = stk_get_trans_id(pack);
-						*llc_state_s = S_LLC_RECEIVED_ALL;
-					} else {
-						pr_assert(false, "\n");
-					}
+					pr_assert(false, "\n");
 				}
+			} else {
+				/* new packet came */
+				stk_llc_resend_clear_all(tsm);
+				tsm->retries_num = 0;
 
-				stk_llc_mark_as_received(tsm);
+				if (stk_get_pack_type(pack) == TYPE_SINGLE) {
+					tsm->trans_id = stk_get_trans_id(pack);
+					*llc_state_s = S_LLC_RECEIVED_ALL;
+				} else {
+					pr_assert(false, "\n");
+				}
 			}
 
-			break;
-		}
-		case S_LLC_RECEIVED_ALL: {
-			pack = stk_get_send_packholder(tsm);
-			stk_llc_single_prepare(tsm, pack, send_data, 16);
-
-			stk_llc_pack_commit(tsm, pack);
-			stk_llc_resend_add(tsm, pack);
-
-			*llc_state_s = S_LLC_SEND_ALL;
-
-			break;
-		}
-		case S_LLC_SEND_ALL: {
-			pr_info("[s:%u] recieved & send\n", tsm->trans_id);
-
-			*llc_state_s = S_LLC_IDLE;
-
-			break;
-		}
-		case S_LLC_RESEND: {
-			/* resend last packet (or series) */
-			pr_assert(stk_llc_resend_get(tsm, &pack), "empty resend list?\n");
-
-			stk_llc_resend_get(tsm, &pack);
-			stk_llc_pack_commit(tsm, pack);
-
-			tsm->retries_num++;
-
-			pr_info("[s:%u] resending response, due to master pack, retries %u\n", tsm->trans_id, tsm->retries_num);
-
-			*llc_state_s = S_LLC_IDLE;
-
-			break;
+			stk_llc_mark_as_received(tsm);
 		}
 
-		default:
-			pr_assert(false, "\n");
+		break;
+	}
+	case S_LLC_RECEIVED_ALL: {
+		pack = stk_get_send_packholder(tsm);
+		stk_llc_single_prepare(tsm, pack, send_data, 16);
+
+		stk_llc_pack_commit(tsm, pack);
+		stk_llc_resend_add(tsm, pack);
+
+		*llc_state_s = S_LLC_SEND_ALL;
+
+		break;
+	}
+	case S_LLC_SEND_ALL: {
+		pr_info("[s:%u] recieved & send\n", tsm->trans_id);
+
+		*llc_state_s = S_LLC_IDLE;
+
+		break;
+	}
+	case S_LLC_RESEND: {
+		/* resend last packet (or series) */
+		pr_assert(stk_llc_resend_get(tsm, &pack), "empty resend list?\n");
+
+		stk_llc_resend_get(tsm, &pack);
+		stk_llc_pack_commit(tsm, pack);
+
+		tsm->retries_num++;
+
+		pr_info("[s:%u] resending response, due to master pack, retries %u\n", tsm->trans_id, tsm->retries_num);
+
+		*llc_state_s = S_LLC_IDLE;
+
+		break;
+	}
+
+	default:
+		pr_assert(false, "\n");
 	}
 
 	/* as current state changed - run FSM again as we can process another state */
@@ -479,77 +479,77 @@ respin:
 	llc_state_m_prev = *llc_state_m;
 
 	switch (llc_state_m_prev) {
-		case M_LLC_IDLE: {
-			if (stk_m_has_pack_to_send(tsm)) {
-				stk_llc_resend_clear_all(tsm);
-				tsm->retries_num = 0;
-				stk_m_prep_trans_id(tsm);
+	case M_LLC_IDLE: {
+		if (stk_m_has_pack_to_send(tsm)) {
+			stk_llc_resend_clear_all(tsm);
+			tsm->retries_num = 0;
+			stk_m_prep_trans_id(tsm);
 
-				pack = stk_get_send_packholder(tsm);
+			pack = stk_get_send_packholder(tsm);
 
-				stk_llc_single_prepare(tsm, pack, send_data, 16);
+			stk_llc_single_prepare(tsm, pack, send_data, 16);
 
-				stk_llc_pack_commit(tsm, pack);
-				stk_llc_resend_add(tsm, pack);
-
-				tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
-
-				*llc_state_m = M_LLC_SEND_ALL;
-			}
-
-			break;
-		}
-		case M_LLC_SEND_ALL: {
-			if (stk_llc_has_received_pack(tsm)) {
-				pack = stk_llc_get_first_received(tsm);
-
-				pr_assert(stk_get_pack_type(pack) == TYPE_SINGLE,
-					  "unknown pack, type %u\n", stk_get_pack_type(pack));
-
-				pr_assert(stk_get_trans_id(pack) == tsm->trans_id,
-					  "trans_id mismatch, got %u\n", stk_get_trans_id(pack));
-
-				tsm->test_trans_id = stk_get_trans_id(pack);
-
-				stk_llc_mark_as_received(tsm);
-				*llc_state_m = M_LLC_RECEIVED_ALL;
-
-			} else if (tt_timer_is_timeouted(&tsm->llc_timer)) {
-				/* timeouted, resend last packet */
-				*llc_state_m = M_LLC_RESEND;
-			}
-
-			break;
-		}
-		case M_LLC_RECEIVED_ALL: {
-			pr_assert(tsm->trans_id == tsm->test_trans_id, "%s trans_id mismatch\n", __func__);
-
-			pr_info("[m:%u] send & recieved ACK, got id %u, retries %u\n", tsm->trans_id, tsm->test_trans_id, tsm->retries_num);
-
-			*llc_state_m = M_LLC_IDLE;
-
-			break;
-		}
-		case M_LLC_RESEND: {
-			/* resend last packet (or series) */
-			pr_assert(stk_llc_resend_get(tsm, &pack), "%s empty resend list?\n", __func__);
-
-			stk_llc_resend_get(tsm, &pack);
 			stk_llc_pack_commit(tsm, pack);
+			stk_llc_resend_add(tsm, pack);
 
 			tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
 
-			tsm->retries_num++;
-
-			pr_info("[m:%u] resending pack, due to timeout, retries %u\n", tsm->trans_id, tsm->retries_num);
-
 			*llc_state_m = M_LLC_SEND_ALL;
-
-			break;
 		}
 
-		default:
-			pr_assert(false, "\n");
+		break;
+	}
+	case M_LLC_SEND_ALL: {
+		if (stk_llc_has_received_pack(tsm)) {
+			pack = stk_llc_get_first_received(tsm);
+
+			pr_assert(stk_get_pack_type(pack) == TYPE_SINGLE,
+				  "unknown pack, type %u\n", stk_get_pack_type(pack));
+
+			pr_assert(stk_get_trans_id(pack) == tsm->trans_id,
+				  "trans_id mismatch, got %u\n", stk_get_trans_id(pack));
+
+			tsm->test_trans_id = stk_get_trans_id(pack);
+
+			stk_llc_mark_as_received(tsm);
+			*llc_state_m = M_LLC_RECEIVED_ALL;
+
+		} else if (tt_timer_is_timeouted(&tsm->llc_timer)) {
+			/* timeouted, resend last packet */
+			*llc_state_m = M_LLC_RESEND;
+		}
+
+		break;
+	}
+	case M_LLC_RECEIVED_ALL: {
+		pr_assert(tsm->trans_id == tsm->test_trans_id, "%s trans_id mismatch\n", __func__);
+
+		pr_info("[m:%u] send & recieved ACK, got id %u, retries %u\n", tsm->trans_id, tsm->test_trans_id, tsm->retries_num);
+
+		*llc_state_m = M_LLC_IDLE;
+
+		break;
+	}
+	case M_LLC_RESEND: {
+		/* resend last packet (or series) */
+		pr_assert(stk_llc_resend_get(tsm, &pack), "%s empty resend list?\n", __func__);
+
+		stk_llc_resend_get(tsm, &pack);
+		stk_llc_pack_commit(tsm, pack);
+
+		tt_timer_start(&tsm->llc_timer, CONFIG_WL_STD_TIME_ON_AIR_MS * 3);
+
+		tsm->retries_num++;
+
+		pr_info("[m:%u] resending pack, due to timeout, retries %u\n", tsm->trans_id, tsm->retries_num);
+
+		*llc_state_m = M_LLC_SEND_ALL;
+
+		break;
+	}
+
+	default:
+		pr_assert(false, "\n");
 	}
 
 	/* as current state changed - run FSM again as we can process another state */
